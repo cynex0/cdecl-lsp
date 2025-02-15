@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"cdecl-lsp/lsp"
 	"cdecl-lsp/rpc"
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,13 +18,35 @@ func main() {
 	scanner.Split(rpc.Split)
 
 	for scanner.Scan() {
-		msg := scanner.Text()
-		handleMessage(logger, msg)
+		msg := scanner.Bytes()
+		method, content, err := rpc.DecodeMessage(msg)
+		if err != nil {
+			logger.Printf("Got an error %s", err)
+			continue
+		}
+
+		handleMessage(logger, method, content)
 	}
 }
 
-func handleMessage(logger *log.Logger, msg any) {
-	logger.Println(msg)
+func handleMessage(logger *log.Logger, method string, content []byte) {
+	logger.Printf("Received message: %s", content)
+	switch method {
+	case "initialize":
+		var request lsp.InitializeRequest
+		if err := json.Unmarshal(content, &request); err != nil {
+			logger.Printf("could not parse message: %s", err)
+		}
+
+		res := rpc.EncodeMessage(lsp.NewInitializeResponse(request.ID))
+
+		writer := os.Stdout
+		writer.Write([]byte(res))
+
+		logger.Printf("Initialized: %s %s",
+			request.Params.ClientInfo.Name,
+			request.Params.ClientInfo.Version)
+	}
 	// TODO:
 }
 
