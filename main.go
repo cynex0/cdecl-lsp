@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -67,7 +68,13 @@ func handleMessage(state *lsp.State, logger *log.Logger, method string, content 
 		if contains {
 			changes := request.Params.ContentChanges
 			for _, change := range changes {
-				logger.Printf("Got change for %s: %s", request.Params.TextDocument.URI, change.Text)
+				if change.Range != nil { // if the change capability is set to 2
+					// TODO: implement range changes
+					logger.Printf("Do not know what to do with a range change: %s", change.Text)
+					break
+				}
+
+				state.Documents[request.Params.TextDocument.URI] = change.Text
 			}
 		} else {
 			logger.Printf("Could not apply changes to a non-opened document")
@@ -78,7 +85,9 @@ func handleMessage(state *lsp.State, logger *log.Logger, method string, content 
 		if err := json.Unmarshal(content, &request); err != nil {
 			logger.Printf("could not parse message: %s", err)
 		}
-		res := rpc.EncodeMessage(lsp.NewHoverResponse(request.ID, "hello :)"))
+
+		lines := strings.Split(state.Documents[request.Params.TextDocument.URI], "\n")
+		res := rpc.EncodeMessage(lsp.NewHoverResponse(request.ID, lines[request.Params.Position.Line]))
 
 		writer := os.Stdout
 		writer.Write([]byte(res))
