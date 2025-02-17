@@ -17,6 +17,8 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Split(rpc.Split)
 
+	state := lsp.NewState()
+
 	for scanner.Scan() {
 		msg := scanner.Bytes()
 		method, content, err := rpc.DecodeMessage(msg)
@@ -25,11 +27,11 @@ func main() {
 			continue
 		}
 
-		handleMessage(logger, method, content)
+		handleMessage(&state, logger, method, content)
 	}
 }
 
-func handleMessage(logger *log.Logger, method string, content []byte) {
+func handleMessage(state *lsp.State, logger *log.Logger, method string, content []byte) {
 	logger.Printf("Received message: %s", content)
 	switch method {
 	case "initialize":
@@ -46,8 +48,43 @@ func handleMessage(logger *log.Logger, method string, content []byte) {
 		logger.Printf("Initialized: %s %s",
 			request.Params.ClientInfo.Name,
 			request.Params.ClientInfo.Version)
+		logger.Printf("Sent response: %s", res)
+
+	case "textDocument/didOpen":
+		var request lsp.DidOpenTextDocumentNotification
+		if err := json.Unmarshal(content, &request); err != nil {
+			logger.Printf("could not parse message: %s", err)
+		}
+
+		state.Documents[request.Params.TextDocument.URI] = request.Params.TextDocument.Text
+
+	case "textDocument/didChange":
+		var request lsp.DidChangeTextDocumentNotification
+		if err := json.Unmarshal(content, &request); err != nil {
+			logger.Printf("could not parse message: %s", err)
+		}
+		_, contains := state.Documents[request.Params.TextDocument.URI]
+		if contains {
+			changes := request.Params.ContentChanges
+			for _, change := range changes {
+				logger.Printf("Got change for %s: %s", request.Params.TextDocument.URI, change.Text)
+			}
+		} else {
+			logger.Printf("Could not apply changes to a non-opened document")
+		}
+
+	case "textDocument/hover":
+		var request lsp.HoverRequest
+		if err := json.Unmarshal(content, &request); err != nil {
+			logger.Printf("could not parse message: %s", err)
+		}
+		res := rpc.EncodeMessage(lsp.NewHoverResponse(request.ID, "hello :)"))
+
+		writer := os.Stdout
+		writer.Write([]byte(res))
+
+		logger.Printf("sent response: %s", res)
 	}
-	// TODO:
 }
 
 func getLogger(filename string) *log.Logger {

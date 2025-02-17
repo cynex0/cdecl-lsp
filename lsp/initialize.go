@@ -27,11 +27,13 @@ type InitializeResult struct {
 }
 
 type ServerCapabilities struct {
-	HoverProvider         bool                  `json:"hoverProvider"`
-	SignatureHelpProvider *SignatureHelpOptions `json:"signatureHelpProvider"`
+	TextDocumentSync TextDocumentSyncOptions `json:"textDocumentSync"`
+	HoverProvider    bool                    `json:"hoverProvider"`
 }
 
-type SignatureHelpOptions struct {
+type TextDocumentSyncOptions struct {
+	OpenClose bool `json:"openClose"`
+	Change    int  `json:"change"`
 }
 
 func NewInitializeResponse(id int) InitializeResponse {
@@ -45,7 +47,13 @@ func NewInitializeResponse(id int) InitializeResponse {
 				Name:    "cdecl-lsp",
 				Version: "0.0.1",
 			},
-			Capabilities: ServerCapabilities{},
+			Capabilities: ServerCapabilities{
+				TextDocumentSync: TextDocumentSyncOptions{
+					OpenClose: true,
+					Change:    1,
+				},
+				HoverProvider: true,
+			},
 		},
 	}
 }
