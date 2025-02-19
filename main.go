@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"cdecl-lsp/lsp"
+	"cdecl-lsp/parser"
 	"cdecl-lsp/rpc"
 	"encoding/json"
 	"log"
@@ -87,12 +88,16 @@ func handleMessage(state *lsp.State, logger *log.Logger, method string, content 
 		}
 
 		lines := strings.Split(state.Documents[request.Params.TextDocument.URI], "\n")
-		res := rpc.EncodeMessage(lsp.NewHoverResponse(request.ID, lines[request.Params.Position.Line]))
+		line := lines[request.Params.Position.Line]
+		if parser.IsDeclaration(line) {
+			res := rpc.EncodeMessage(lsp.NewHoverResponse(request.ID, "You are a type declaration, Harry"))
 
-		writer := os.Stdout
-		writer.Write([]byte(res))
+			writer := os.Stdout
 
-		logger.Printf("sent response: %s", res)
+			writer.Write([]byte(res))
+			logger.Printf("sent response: %s", res)
+		}
+
 	}
 }
 
