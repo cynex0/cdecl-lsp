@@ -3,13 +3,10 @@ package main
 import (
 	"bufio"
 	"cdecl-lsp/lsp"
-	"cdecl-lsp/parser"
 	"cdecl-lsp/rpc"
-	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func main() {
@@ -37,67 +34,42 @@ func handleMessage(state *lsp.State, logger *log.Logger, method string, content 
 	logger.Printf("Received message: %s", content)
 	switch method {
 	case "initialize":
-		var request lsp.InitializeRequest
-		if err := json.Unmarshal(content, &request); err != nil {
-			logger.Printf("could not parse message: %s", err)
+		msg, err := lsp.HandleInitialize(content)
+		if err != nil {
+			logger.Printf("Could not initialize")
+			return
 		}
 
-		res := rpc.EncodeMessage(lsp.NewInitializeResponse(request.ID))
-
+		res := rpc.EncodeMessage(msg)
 		writer := os.Stdout
 		writer.Write([]byte(res))
 
-		logger.Printf("Initialized: %s %s",
-			request.Params.ClientInfo.Name,
-			request.Params.ClientInfo.Version)
-		logger.Printf("Sent response: %s", res)
+		logger.Printf("Sent initialize response: %s", res)
 
 	case "textDocument/didOpen":
-		var request lsp.DidOpenTextDocumentNotification
-		if err := json.Unmarshal(content, &request); err != nil {
-			logger.Printf("could not parse message: %s", err)
+		if err := lsp.HandleDidOpen(content, state); err != nil {
+			logger.Printf("failed to handle %s request: %s", method, err)
 		}
-
-		state.Documents[request.Params.TextDocument.URI] = request.Params.TextDocument.Text
+		logger.Printf("Registered opened document")
 
 	case "textDocument/didChange":
-		var request lsp.DidChangeTextDocumentNotification
-		if err := json.Unmarshal(content, &request); err != nil {
-			logger.Printf("could not parse message: %s", err)
+		if err := lsp.HandleDidChange(content, state); err != nil {
+			logger.Printf("failed to handle %s request: %s", method, err)
 		}
-		_, contains := state.Documents[request.Params.TextDocument.URI]
-		if contains {
-			changes := request.Params.ContentChanges
-			for _, change := range changes {
-				if change.Range != nil { // if the change capability is set to 2
-					// TODO: implement range changes
-					logger.Printf("Do not know what to do with a range change: %s", change.Text)
-					break
-				}
-
-				state.Documents[request.Params.TextDocument.URI] = change.Text
-			}
-		} else {
-			logger.Printf("Could not apply changes to a non-opened document")
-		}
+		logger.Printf("Document change applied")
 
 	case "textDocument/hover":
-		var request lsp.HoverRequest
-		if err := json.Unmarshal(content, &request); err != nil {
-			logger.Printf("could not parse message: %s", err)
+		msg, err := lsp.HandleHover(content, state)
+		if err != nil {
+			logger.Printf("Could not initialize")
+			return
 		}
 
-		lines := strings.Split(state.Documents[request.Params.TextDocument.URI], "\n")
-		line := lines[request.Params.Position.Line]
-		if parser.IsDeclaration(line) {
-			res := rpc.EncodeMessage(lsp.NewHoverResponse(request.ID, "You are a type declaration, Harry"))
+		res := rpc.EncodeMessage(msg)
+		writer := os.Stdout
+		writer.Write([]byte(res))
 
-			writer := os.Stdout
-
-			writer.Write([]byte(res))
-			logger.Printf("sent response: %s", res)
-		}
-
+		logger.Printf("Sent hover response: %s", res)
 	}
 }
 
