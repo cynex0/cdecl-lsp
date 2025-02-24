@@ -61,11 +61,14 @@ func HandleHover(content []byte, state *State) (*HoverResponse, error) {
 	lines := strings.Split(state.Documents[request.Params.TextDocument.URI], "\n")
 	line := lines[request.Params.Position.Line]
 
-	var res HoverResponse
+	res := NewHoverResponse(request.ID, "")
 	if parser.IsDeclaration(line) {
-		res = NewHoverResponse(request.ID, "You are a type declaration, Harry") // TODO:
-	} else {
-		res = NewHoverResponse(request.ID, "")
+		explain, err := parser.Explain(line)
+		if err != nil {
+			return &res, err
+		}
+
+		res.Result.Contents = explain
 	}
 
 	return &res, nil

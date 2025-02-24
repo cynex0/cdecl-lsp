@@ -3,8 +3,6 @@ package parser
 import (
 	"regexp"
 	"strings"
-	// "strings"
-	// "unicode"
 )
 
 func IsIdentifier(tok string) bool {
@@ -16,7 +14,7 @@ func IsType(tok string) bool {
 }
 
 func IsDeclaration(line string) bool {
-	re := regexp.MustCompile("(?:void|char|short|int|long|float|double)\\s+\\w+")
+	re := regexp.MustCompile("(?:void|char|short|int|long|float|double)")
 	return re.MatchString(line)
 }
 

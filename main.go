@@ -26,7 +26,7 @@ func main() {
 			continue
 		}
 
-		handleMessage(&state, logger, method, content)
+		go handleMessage(&state, logger, method, content)
 	}
 }
 
@@ -61,7 +61,11 @@ func handleMessage(state *lsp.State, logger *log.Logger, method string, content 
 	case "textDocument/hover":
 		msg, err := lsp.HandleHover(content, state)
 		if err != nil {
-			logger.Printf("Could not initialize")
+			logger.Printf("Could not handle hover request, %s", err)
+		}
+
+		if msg == nil {
+			logger.Printf("Could not handle hover request")
 			return
 		}
 
